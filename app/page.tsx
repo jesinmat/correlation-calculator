@@ -1,95 +1,141 @@
-import Image from "next/image";
+"use client";
+import { correlation } from "@/support/correlation";
 import styles from "./page.module.css";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
 export default function Home() {
+  const [text, setText] = useState("");
+  const [suffix, setSuffix] = useState("");
+  const [prevWrittenSymbols, setPrevWrittenSymbols] = useState<Set<string>>(
+    new Set()
+  );
+  const [waitingForRequest, setWaitingForRequest] = useState<Set<string>>(
+    new Set()
+  );
+  const [responses, setResponses] = useState<Map<string, any>>(new Map());
+
+  const [debouncedText, setDebouncedText] = useState("");
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      handleTickersChange(debouncedText.split("\n").slice(0, -1));
+    }, 1000);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [debouncedText]);
+
+  const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    setText(event.target.value);
+    setDebouncedText(event.target.value);
+  };
+
+  const handleTickersChange = (tickers: string[]) => {
+    const newTickers = tickers.filter(
+      (ticker) => !prevWrittenSymbols.has(ticker)
+    );
+
+    setPrevWrittenSymbols(new Set([...prevWrittenSymbols, ...newTickers]));
+    setWaitingForRequest(new Set([...waitingForRequest, ...newTickers]));
+  };
+
+  const loadTickerData = useCallback(async (ticker: string) => {
+    const data = await fetch(`/api/ticker?ticker=${ticker}`);
+    return await data.json();
+  }, []);
+
+  useEffect(() => {
+    if (waitingForRequest.size > 0) {
+      const ticker = waitingForRequest.values().next().value;
+      loadTickerData(ticker).then((data) => {
+        // Remove ticker from waitingForRequest
+        setWaitingForRequest(
+          new Set([...waitingForRequest].filter((t) => t !== ticker))
+        );
+        // Add ticker to responses
+        setResponses((resp) => new Map([...resp, [ticker, data]]));
+      });
+    }
+  }, [waitingForRequest]);
+
+  const tickers = Array.from(
+    new Set(
+      text
+        .split("\n")
+        .filter((line) => line.trim().length > 0)
+        .filter((line) => responses.has(line))
+    ).values()
+  );
+
+  const addSuffix = () => {
+    if (suffix.trim().length === 0) {
+      return;
+    }
+    const newTickers = text
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+      .map((line) => line + suffix);
+    setText(newTickers.join("\n"));
+    handleTickersChange(newTickers);
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
+    <>
+      <main className={styles.main}>
+        <h1 className={styles.title}>Correlation calculator</h1>
+        <section className={styles.content}>
+          <div>
+            <label htmlFor="tickers">Insert tickers:</label>
+            <textarea
+              id="tickers"
+              className={styles.textarea}
+              value={text}
+              onChange={handleTextChange}
             />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            <div className={styles.inputGroup}>
+              <input
+                type="text"
+                id="tickers"
+                className={styles.textInput}
+                value={suffix}
+                maxLength={5}
+                onChange={(e) => setSuffix(e.target.value)}
+              />
+              <button className={styles.button} onClick={addSuffix}>
+                Add suffix
+              </button>
+            </div>
+          </div>
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  {tickers.map((line) => (
+                    <th key={line}>{line}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tickers.map((ticker) => (
+                  <tr key={ticker}>
+                    <td>{ticker}</td>
+                    {tickers.map((secondTicker) => (
+                      <td key={ticker + secondTicker}>
+                        {correlation(
+                          responses.get(ticker),
+                          responses.get(secondTicker)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </>
   );
 }
