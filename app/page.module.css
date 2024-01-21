@@ -9,6 +9,7 @@
   display: flex;
   flex-direction: row;
   justify-content: center;
+  gap: 4em;
 }
 
 .title {
@@ -21,45 +22,22 @@
   letter-spacing: 2px;
 }
 
+.underTitle {
+  font-size: 1em;
+  color: #333;
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
 .textarea {
-  width: 80%; /* Increase the width */
+  width: 100%; /* Increase the width */
   height: 200px; /* Increase the height */
   padding: 10px; /* Add some padding */
   font-size: 16px; /* Increase font size */
   border-radius: 5px; /* Add border radius for rounded corners */
   border: 1px solid #ccc; /* Add a border */
   resize: none; /* Disable resizing */
-}
-
-.table {
-  width: 100%; /* Make the table take up the full width */
-  border-collapse: collapse; /* Collapse borders */
-}
-
-.table th,
-.table td {
-  border: 1px solid #ddd; /* Add a border to the cells */
-  padding: 15px; /* Add some padding */
-  text-align: left; /* Align text to the left */
-  text-transform: uppercase; /* Make text uppercase */
-  min-width: 4em;
-}
-
-.table tbody tr td:first-of-type {
-  font-weight: bold;
-}
-
-.table th {
-  background-color: #f2f2f2; /* Add a background color to the header cells */
-  color: black; /* Make the text color black */
-}
-
-.table tr:nth-child(even) {
-  background-color: #f2f2f2; /* Add a background color to every other row */
-}
-
-.table tr:hover {
-  background-color: #ddd; /* Change the background color when hovering over a row */
 }
 
 .inputGroup {
@@ -89,8 +67,34 @@
   background-color: #a5a5a5; /* Darker shade of the original color for hover effect */
 }
 
+.leftContainer {
+  max-width: 17vw;
+}
+
 .tableContainer {
   max-width: 80vw;
   overflow: auto;
   max-height: 80vh;
+}
+
+.tickersListHeader {
+  font-weight: normal;
+  margin: 0;
+}
+
+.info {
+  font-size: small;
+}
+
+.legend {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 1em;
+  margin-top: 1em;
+}
+
+.legendSymbol {
+  width: 4em;
+  color: brown;
 }

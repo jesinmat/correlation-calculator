@@ -12,42 +12,10 @@ export function correlation(x: TickerData, y: TickerData) {
     return "--";
   }
 
-  // Find the earliest common date
-  const xDates = new Set(x.res.map((item) => item.date));
-  const yDates = new Set(y.res.map((item) => item.date));
-  const commonDates = Array.from(xDates).filter((date) => yDates.has(date));
-  commonDates.sort();
-  const commonDatesSet = new Set(commonDates);
+  const { earliestCommonDate, commonDatesSet } = findCommonWeekDates(x, y);
 
-  if (commonDates.length === 0) {
+  if (!earliestCommonDate) {
     return "--";
-  }
-
-  const earliestCommonDate = commonDates[0];
-  const commonWeeks = [];
-  let currentPoint = new Date(earliestCommonDate);
-  while (currentPoint.getDate() % 7 !== 4) {
-    currentPoint.setDate(currentPoint.getDate() + 1);
-  }
-  while (currentPoint < new Date()) {
-    currentPoint.setDate(currentPoint.getDate() + 7);
-    const currentDate = currentPoint.toISOString();
-    if (!commonDatesSet.has(currentDate)) {
-      continue;
-    }
-    commonWeeks.push(currentDate);
-  }
-
-  console.log(
-    "commonDates",
-    commonDates.length,
-    "commonWeeks",
-    commonWeeks.length
-  );
-  if (commonWeeks.length > commonDates.length / 100) {
-    console.log("Using weekly data");
-    commonDatesSet.clear();
-    commonWeeks.forEach((date) => commonDatesSet.add(date));
   }
 
   // Filter the data to include only the entries from the earliest common date onwards
@@ -81,5 +49,39 @@ export function correlation(x: TickerData, y: TickerData) {
     return 0;
   }
 
-  return (numerator / denominator).toFixed(3);
+  return numerator / denominator;
+}
+
+function findCommonWeekDates(x: TickerData, y: TickerData) {
+  // Find the earliest common date
+  const xDates = new Set(x.res.map((item) => item.date));
+  const yDates = new Set(y.res.map((item) => item.date));
+  const commonDates = Array.from(xDates).filter((date) => yDates.has(date));
+  commonDates.sort();
+  const commonDatesSet = new Set(commonDates);
+
+  if (commonDates.length === 0) {
+    return { earliestCommonDate: undefined, commonDatesSet };
+  }
+
+  const earliestCommonDate = commonDates[0];
+  const commonWeeks = [];
+  let currentPoint = new Date(earliestCommonDate);
+  // Find the next Friday
+  while (currentPoint.getUTCDay() % 7 !== 5) {
+    currentPoint.setDate(currentPoint.getDate() + 1);
+  }
+  while (currentPoint < new Date()) {
+    currentPoint.setDate(currentPoint.getDate() + 7);
+    const currentDate = currentPoint.toISOString();
+    if (!commonDatesSet.has(currentDate)) {
+      continue;
+    }
+    commonWeeks.push(currentDate);
+  }
+
+  commonDatesSet.clear();
+  commonWeeks.forEach((date) => commonDatesSet.add(date));
+
+  return { earliestCommonDate, commonDatesSet };
 }

@@ -1,11 +1,10 @@
 "use client";
-import { correlation } from "@/support/correlation";
+import Table from "@/support/components/table";
 import styles from "./page.module.css";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [suffix, setSuffix] = useState("");
   const [prevWrittenSymbols, setPrevWrittenSymbols] = useState<Set<string>>(
     new Set()
   );
@@ -16,34 +15,47 @@ export default function Home() {
 
   const [debouncedText, setDebouncedText] = useState("");
 
-  useEffect(() => {
-    const timerId = setTimeout(() => {
-      handleTickersChange(debouncedText.split("\n").slice(0, -1));
-    }, 1000);
-
-    return () => {
-      clearTimeout(timerId);
-    };
-  }, [debouncedText]);
-
   const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setText(event.target.value);
     setDebouncedText(event.target.value);
   };
 
-  const handleTickersChange = (tickers: string[]) => {
-    const newTickers = tickers.filter(
-      (ticker) => !prevWrittenSymbols.has(ticker)
-    );
+  const handleTickersChange = useCallback(
+    (tickers: string[]) => {
+      const newTickers = tickers.filter(
+        (ticker) => !prevWrittenSymbols.has(ticker)
+      );
 
-    setPrevWrittenSymbols(new Set([...prevWrittenSymbols, ...newTickers]));
-    setWaitingForRequest(new Set([...waitingForRequest, ...newTickers]));
-  };
+      if (newTickers.length === 0) {
+        return;
+      }
+
+      setPrevWrittenSymbols((prev) => new Set([...prev, ...newTickers]));
+      setWaitingForRequest((prev) => new Set([...prev, ...newTickers]));
+    },
+    [prevWrittenSymbols]
+  );
 
   const loadTickerData = useCallback(async (ticker: string) => {
     const data = await fetch(`/api/ticker?ticker=${ticker}`);
     return await data.json();
   }, []);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      handleTickersChange(
+        debouncedText
+          .split("\n")
+          .slice(0, -1)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+      );
+    }, 1000);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [debouncedText, handleTickersChange]);
 
   useEffect(() => {
     if (waitingForRequest.size > 0) {
@@ -57,82 +69,56 @@ export default function Home() {
         setResponses((resp) => new Map([...resp, [ticker, data]]));
       });
     }
-  }, [waitingForRequest]);
+  }, [waitingForRequest, loadTickerData]);
 
   const tickers = Array.from(
     new Set(
       text
         .split("\n")
-        .filter((line) => line.trim().length > 0)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
         .filter((line) => responses.has(line))
     ).values()
   );
-
-  const addSuffix = () => {
-    if (suffix.trim().length === 0) {
-      return;
-    }
-    const newTickers = text
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .map((line) => line + suffix);
-    setText(newTickers.join("\n"));
-    handleTickersChange(newTickers);
-  };
 
   return (
     <>
       <main className={styles.main}>
         <h1 className={styles.title}>Correlation calculator</h1>
+        <p className={styles.underTitle}>
+          Easily calculate price correlation for your ETFs and Stocks.
+        </p>
         <section className={styles.content}>
-          <div>
-            <label htmlFor="tickers">Insert tickers:</label>
+          <div className={styles.leftContainer}>
+            <label htmlFor="tickers">
+              <h4 className={styles.tickersListHeader}>Tickers:</h4>
+            </label>
+            <small>
+              One per line. Include exchange suffix (.DE, .L, ...) if needed.
+              End with new line.
+            </small>
             <textarea
               id="tickers"
               className={styles.textarea}
               value={text}
               onChange={handleTextChange}
             />
-            <div className={styles.inputGroup}>
-              <input
-                type="text"
-                id="tickers"
-                className={styles.textInput}
-                value={suffix}
-                maxLength={5}
-                onChange={(e) => setSuffix(e.target.value)}
-              />
-              <button className={styles.button} onClick={addSuffix}>
-                Add suffix
-              </button>
+            <div className={styles.info}>
+              <div>Using weekly price correlation since 01-01-2025.</div>
+              <div className={styles.legend}>
+                <div className={styles.legendSymbol}>--</div>
+                <div className={styles.legendExplanation}>
+                  Symbol not found. Check exact symbol on Yahoo Finance.
+                </div>
+              </div>
+              <div className={styles.legend}>
+                <div className={styles.legendSymbol}>0</div>
+                <div className={styles.legendExplanation}>Not enough data.</div>
+              </div>
             </div>
           </div>
           <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Ticker</th>
-                  {tickers.map((line) => (
-                    <th key={line}>{line}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {tickers.map((ticker) => (
-                  <tr key={ticker}>
-                    <td>{ticker}</td>
-                    {tickers.map((secondTicker) => (
-                      <td key={ticker + secondTicker}>
-                        {correlation(
-                          responses.get(ticker),
-                          responses.get(secondTicker)
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table tickers={tickers} responses={responses} />
           </div>
         </section>
       </main>
