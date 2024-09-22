@@ -3,6 +3,15 @@ import Table from "@/support/components/table";
 import styles from "./page.module.css";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
+function removeTimes(data: { res: Array<{ date: string }> }) {
+  return {
+    res: data.res.map((item) => ({
+      ...item,
+      date: item.date.split("T")[0] + "T01:00:00.000Z",
+    })),
+  };
+}
+
 export default function Home() {
   const [text, setText] = useState("");
   const [prevWrittenSymbols, setPrevWrittenSymbols] = useState<Set<string>>(
@@ -66,7 +75,7 @@ export default function Home() {
           new Set([...waitingForRequest].filter((t) => t !== ticker))
         );
         // Add ticker to responses
-        setResponses((resp) => new Map([...resp, [ticker, data]]));
+        setResponses((resp) => new Map([...resp, [ticker, removeTimes(data)]]));
       });
     }
   }, [waitingForRequest, loadTickerData]);

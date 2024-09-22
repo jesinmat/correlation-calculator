@@ -25,6 +25,8 @@ export default function Table({
       return corrResults.get(key2);
     }
 
+    console.log(responses.get(ticker));
+
     const result = correlation(
       responses.get(ticker),
       responses.get(secondTicker)
